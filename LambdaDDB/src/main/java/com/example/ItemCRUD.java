@@ -1,106 +1,87 @@
 package com.example;
 
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
+import java.time.Instant;
 import java.util.UUID;
 
-import com.amazonaws.regions.Regions;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
-import com.amazonaws.services.dynamodbv2.document.DynamoDB;
-//import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDB;
-import com.amazonaws.services.dynamodbv2.document.Item;
-import com.amazonaws.services.dynamodbv2.document.Table;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
+import software.amazon.awssdk.enhanced.dynamodb.Key;
+import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 
+
+@DynamoDbBean
 public class ItemCRUD {
 
-	static AmazonDynamoDB client = AmazonDynamoDBClientBuilder.standard().withRegion(Regions.US_EAST_2).build();
-	static DynamoDB dynamoDB = new DynamoDB(client);
+	// Create a DynamoDbClient object
+	static Region region = Region.US_EAST_2;
+	static DynamoDbClient ddb = DynamoDbClient.builder().region(region).build();
 
-	static String tableName = "products";
-	static String productId = UUID.randomUUID().toString();
+	// Create a DynamoDbEnhancedClient and use the DynamoDbClient object
+	static DynamoDbEnhancedClient enhancedClient = DynamoDbEnhancedClient.builder().dynamoDbClient(ddb).build();
 
-	public static void main(String[] args) throws IOException {
-
-		System.out.println("--- Program Initiated !! ----");
-
-		createItems();
-
-		retrieveItem();
-
-//        // Perform various updates.
-//        updateMultipleAttributes();
-//        updateAddNewAttribute();
-//        updateExistingAttributeConditionally();
-//
-//        // Delete the item.
-//        deleteItem();
-
-	}
+	static DynamoDbTable<ItemCRUD> customerTable = enhancedClient.table("ItemCRUD",
+			TableSchema.fromBean(ItemCRUD.class));
 
 	public static String handleRequest(Object args) {
 		System.out.println("--- handleRequest() Initiated !! ----");
 
-		createItems();
+		ItemCRUD customer1 = new ItemCRUD();
+		customer1.setId(UUID.randomUUID().toString());
+		customer1.setName("Vikram Rawat");
+		customer1.setRegistrationDate(Instant.now());
 
-		return retrieveItem();
+		customerTable.putItem(customer1);
 
-//        return "-- Success !! --";
+		Key key = Key.builder().partitionValue("1").build();
+
+		ItemCRUD customer2 = customerTable.getItem(key);
+		
+		System.out.println("-- customer2: " + customer2.toString());
+
+		return customer2.toString();
 
 	}
 
-	private static void createItems() {
+	public ItemCRUD() {
 
-		Table table = dynamoDB.getTable(tableName);
-		try {
-
-			Item item = new Item().withPrimaryKey("productId", productId).withString("Title", "Book 120 Title")
-					.withString("ISBN", "120-1111111111")
-					.withStringSet("Authors", new HashSet<String>(Arrays.asList("Author12", "Author22")))
-					.withNumber("Price", 20).withString("Dimensions", "8.5x11.0x.75").withNumber("PageCount", 500)
-					.withBoolean("InPublication", false).withString("ProductCategory", "Book");
-			table.putItem(item);
-
-			System.out.println("---- Product Added ----");
-
-			productId = UUID.randomUUID().toString();
-
-			item = new Item().withPrimaryKey("productId", productId).withString("Title", "Book 121 Title")
-					.withString("ISBN", "121-1111111111")
-					.withStringSet("Authors", new HashSet<String>(Arrays.asList("Author21", "Author 22")))
-					.withNumber("Price", 20).withString("Dimensions", "8.5x11.0x.75").withNumber("PageCount", 500)
-					.withBoolean("InPublication", true).withString("ProductCategory", "Book");
-			table.putItem(item);
-
-			System.out.println("---- Product Added ----");
-
-		} catch (Exception e) {
-			System.err.println("Create items failed.");
-			System.err.println(e.getMessage());
-
-		}
 	}
 
-	private static String retrieveItem() {
-		Table table = dynamoDB.getTable(tableName);
+	String id;
+	String name;
+	Instant registrationDate;
 
-		try {
+	@DynamoDbPartitionKey
+	public String getId() {
+		return id;
+	};
 
-			Item item = table.getItem("productId", productId, "productId, ISBN, Title, Authors", null);
+	public void setId(String id) {
+		this.id = id;
+	};
 
-			System.out.println("Printing item after retrieving it....");
-			System.out.println(item.toJSONPretty());
+	public String getName() {
+		return name;
+	};
 
-			return item.toJSONPretty();
+	public void setName(String name) {
+		this.name = name;
+	};
 
-		} catch (Exception e) {
-			System.err.println("GetItem failed.");
-			System.err.println(e.getMessage());
-		}
-		return "-- Error Occurred --";
+	public Instant getRegistrationDate() {
+		return registrationDate;
+	};
+
+	public void setRegistrationDate(Instant registrationDate) {
+		this.registrationDate = registrationDate;
+	};
+	
+	public String toString() {
+		return id + ", " + registrationDate;
+		
 	}
 
 }
